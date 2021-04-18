@@ -278,6 +278,9 @@ target_link_libraries(vorbis
 target_compile_options(vorbis PRIVATE ${disableWarningsFlags})
 set_target_properties(vorbis PROPERTIES FOLDER lib)
 
+# ... minimp3
+include_directories(SYSTEM "lib/minimp3")
+
 # Define Rhubarb libraries
 
 include_directories("src")
@@ -323,6 +326,8 @@ add_library(rhubarb-audio
 	src/audio/DcOffset.h
 	src/audio/ioTools.h
 	src/audio/OggVorbisFileReader.cpp
+	src/audio/MP3FileReader.h
+	src/audio/MP3FileReader.cpp
 	src/audio/OggVorbisFileReader.h
 	src/audio/processing.cpp
 	src/audio/processing.h
