@@ -45,51 +45,24 @@ class MP3File final
 public:
 	MP3File::MP3File(const path& filePath)
 	{
-		int errCode = mp3dec_load_w(&mp3d, filePath.c_str(), &info, NULL, NULL);
-		throwOnError(errCode);
-
-		mp3d_sample_t* monoBuffer = nullptr;
-
-		//Downmix to mono
-
-		monoBuffer = (mp3d_sample_t*)malloc((info.samples / info.channels) * sizeof(mp3d_sample_t));
-		mp3d_sample_t sum = 0.f;
-
-		for (size_t i = 0; i < info.samples; i += info.channels)
-		{
-			sum = 0.f;
-
-			for (int channel = 0; channel < info.channels; ++channel)
-			{
-				sum += info.buffer[i];
-			}
-
-			monoBuffer[i / info.channels] = sum / info.channels;
-		}
-
-		free(info.buffer);
-
-		info.buffer = monoBuffer;
-		info.samples = info.samples / info.channels;
-		info.channels = 1;
+		throwOnError(mp3dec_ex_open_w(&dec, filePath.c_str(), MP3D_SEEK_TO_SAMPLE));
 	}
 
 	MP3File(const MP3File&) = delete;
 	MP3File& operator=(const MP3File&) = delete;
 
-	mp3dec_file_info_t* get()
+	mp3dec_ex_t* get()
 	{
-		return &info;
+		return &dec;
 	}
 
 	~MP3File()
 	{
-		free(info.buffer);
+		
 	}
 
 private:
-	mp3dec_file_info_t info;
-	mp3dec_t mp3d;
+	mp3dec_ex_t dec;
 };
 
 MP3FileReader::MP3FileReader(const boost::filesystem::path& filePath)
@@ -97,9 +70,9 @@ MP3FileReader::MP3FileReader(const boost::filesystem::path& filePath)
 {
 	MP3File file(filePath);
 
-	channelCount = file.get()->channels;
-	sampleRate = file.get()->hz;
-	sampleCount = file.get()->samples;
+	channelCount = file.get()->info.channels;
+	sampleRate = file.get()->info.hz;
+	sampleCount = file.get()->samples / file.get()->info.channels;
 }
 
 std::unique_ptr<AudioClip> MP3FileReader::clone() const
@@ -115,17 +88,15 @@ SampleReader MP3FileReader::createUnsafeSampleReader() const {
 			bufferStart = size_type(0),
 			bufferSize = size_type(0)
 	] (size_type index) mutable {
-			/*if (index < bufferStart || index >= bufferStart + bufferSize) {
+			if (index < bufferStart || index >= bufferStart + bufferSize) {
 				mp3dec_frame_info_t frame_info;
-				// Seek
-				throwOnError(mp3dec_ex_seek(file->get(), index));
+
+				throwOnError(mp3dec_ex_seek(file->get(), index * channelCount));
 
 				constexpr int maxSize = 1024;
 
 				bufferStart = index;
-				bufferSize = mp3dec_ex_read_frame(file->get(), &buffer, &frame_info, maxSize);
-
-				//file->pcmDebug.write((char*)buffer, bufferSize * sizeof(mp3d_sample_t));
+				bufferSize = mp3dec_ex_read_frame(file->get(), &buffer, &frame_info, maxSize) / channelCount;
 
 				if (bufferSize == 0) {
 					throw std::runtime_error("Unexpected end of file.");
@@ -135,12 +106,12 @@ SampleReader MP3FileReader::createUnsafeSampleReader() const {
 			const size_type bufferIndex = index - bufferStart;
 
 			mp3d_sample_t sum = 0.0f;
-			for (int channel = 0; channel < channelCount; ++channel) {
-				sum += buffer[bufferIndex + channel];
+			for (int channel = 0; channel < channelCount; channel++) {
+				sum += buffer[(bufferIndex * channelCount) + channel];
 			}
 			sum = sum / channelCount;
 
-			return sum;*/
+			return sum;
 
 			return file->get()->buffer[index];
 		};
