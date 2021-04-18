@@ -17,11 +17,25 @@ using std::ios_base;
 
 template<typename T>
 T throwOnError(T code) {
-	// OV_HOLE, though technically an error code, is only informational
-	const bool error = code < 0;
-	if (error) {
-		const std::string message = fmt::format("minimp3 error {}", code);
-		throw std::runtime_error(message);
+	if (code < 0) {
+		switch (code)
+		{
+		case MP3D_E_PARAM:
+			throw std::runtime_error("minimp3 error: MP3D_E_PARAM");
+			break;
+		case MP3D_E_MEMORY:
+			throw std::runtime_error("minimp3 error: MP3D_E_MEMORY");
+			break;
+		case MP3D_E_IOERROR:
+			throw std::runtime_error("minimp3 error: MP3D_E_IOERROR");
+			break;
+		case MP3D_E_USER:
+			throw std::runtime_error("minimp3 error: MP3D_E_USER");
+			break;
+		case MP3D_E_DECODE:
+			throw std::runtime_error("minimp3 error: MP3D_E_DECODE");
+			break;
+		}
 	}
 	return code;
 }
@@ -58,10 +72,6 @@ public:
 		info.buffer = monoBuffer;
 		info.samples = info.samples / info.channels;
 		info.channels = 1;
-
-		auto file = std::ofstream("C:\\tst\\pcm.pcm", std::ios::binary);
-		file.write((char*)info.buffer, info.samples * sizeof(mp3d_sample_t));
-		file.close();
 	}
 
 	MP3File(const MP3File&) = delete;
